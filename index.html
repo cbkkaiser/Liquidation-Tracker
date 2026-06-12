@@ -66,13 +66,75 @@
   .text-bad { color: #fca5a5; }
   .progress { height:6px; background: var(--panel-2); border-radius: 3px; overflow:hidden; }
   .progress > div { height:100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll table { min-width: 760px; }
+  .mobile-only { display: none; }
+  .app-overlay { display:none; }
+
+  @media (max-width: 1024px) {
+    #app { min-height: 100vh; }
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 55;
+      width: 16rem;
+      transform: translateX(-105%);
+      transition: transform .22s ease;
+      box-shadow: 0 24px 60px rgba(2, 6, 23, .55);
+    }
+    body.nav-open #sidebar { transform: translateX(0); }
+    .app-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 54;
+      background: rgba(2, 6, 23, .6);
+      backdrop-filter: blur(2px);
+    }
+    body.nav-open .app-overlay { display:block; }
+    .mobile-only { display: inline-flex; }
+    .desktop-only { display: none; }
+    #topHeader {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: .8rem 1rem;
+      gap: .8rem;
+      flex-wrap: wrap;
+    }
+    #headerActions {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+    #headerActions .btn { padding: .45rem .72rem; font-size: .82rem; }
+    #page { padding: 1rem; }
+  }
+
+  @media (max-width: 640px) {
+    #topHeader h1 { font-size: 1.1rem; }
+    #topHeader p { font-size: .78rem; }
+    .stat-card { padding: .85rem .9rem; }
+    .stat-card .text-2xl { font-size: 1.2rem; }
+    .dropzone { padding: 1.25rem .9rem; }
+    .modal { max-width: 100%; margin: 0; }
+    .modal .grid { grid-template-columns: 1fr !important; }
+    .modal .col-span-2 { grid-column: span 1 / span 1 !important; }
+    .modal .flex.justify-end,
+    .modal .flex.justify-between { flex-wrap: wrap; }
+    .modal .btn { width: 100%; justify-content: center; }
+    #toastRoot { left: .65rem; right: .65rem; top: .65rem; }
+  }
 </style>
 </head>
 <body class="min-h-screen">
 
 <div id="app" class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside class="w-60 panel border-r flex-shrink-0 flex flex-col">
+  <aside id="sidebar" class="w-60 panel border-r flex-shrink-0 flex flex-col">
     <div class="px-5 py-5 border-b border-[var(--border)]">
       <div class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center font-bold text-white">L</div>
@@ -90,12 +152,15 @@
 
   <!-- Main -->
   <main class="flex-1 flex flex-col min-w-0">
-    <header class="panel border-b px-7 py-4 flex items-center justify-between">
+    <header id="topHeader" class="panel border-b px-7 py-4 flex items-center justify-between">
       <div>
-        <h1 id="pageTitle" class="text-xl font-bold">Dashboard</h1>
+        <div class="flex items-center gap-2.5">
+          <button class="btn btn-ghost mobile-only" onclick="toggleNav()" aria-label="Open navigation">☰</button>
+          <h1 id="pageTitle" class="text-xl font-bold">Dashboard</h1>
+        </div>
         <p id="pageSub" class="text-sm text-muted">Overview of your side hustle</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div id="headerActions" class="flex items-center gap-2">
         <button class="btn btn-ghost" onclick="exportData()">Export</button>
         <button class="btn btn-primary" onclick="navigate('import')">+ Import Files</button>
       </div>
@@ -103,6 +168,7 @@
     <div id="page" class="flex-1 overflow-y-auto scrollbar p-7"></div>
   </main>
 </div>
+<div class="app-overlay" onclick="closeNav()"></div>
 
 <div id="modalRoot"></div>
 <div id="toastRoot" class="fixed top-4 right-4 z-[60] space-y-2"></div>
@@ -1009,7 +1075,21 @@ function renderNav() {
 function navigate(id) {
   state.ui.route = id;
   state.ui.selectedLot = null;
+  closeNav();
   render();
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 1024px)').matches;
+}
+
+function toggleNav() {
+  if (!isMobileViewport()) return;
+  document.body.classList.toggle('nav-open');
+}
+
+function closeNav() {
+  document.body.classList.remove('nav-open');
 }
 
 function render() {
@@ -1106,6 +1186,7 @@ function renderDashboard(page) {
           <h3 class="font-semibold">Lot Leaderboard</h3>
           <span class="text-xs text-muted">Sorted by profit</span>
         </div>
+        <div class="table-scroll">
         <table class="data">
           <thead><tr>
             <th>Lot</th><th>Source</th><th>Date</th><th class="text-right">Cost</th>
@@ -1130,6 +1211,7 @@ function renderDashboard(page) {
             `).join('')}
           </tbody>
         </table>
+        </div>
       </div>
     `}
   `;
@@ -1296,14 +1378,14 @@ function renderLotDetail(page, lotId) {
         <button class="btn btn-ghost text-sm" onclick="addItemToLot('${lot.id}')">+ Add item</button>
       </div>
       ${m.items.length===0 ? '<div class="p-6 text-center text-muted">No items yet</div>' :
-      `<table class="data">
+      `<div class="table-scroll"><table class="data">
         <thead><tr>
           <th>Item</th><th>SKU</th><th class="text-right">Qty</th><th class="text-right">Retail</th>
           <th class="text-right">Cost</th><th>Status</th><th class="text-right">Sale</th>
           <th class="text-right">Profit</th><th></th>
         </tr></thead>
         <tbody>${m.items.map(it => itemRow(it)).join('')}</tbody>
-      </table>`}
+      </table></div>`}
     </div>
   `;
 }
@@ -1371,7 +1453,7 @@ function renderInventory(page) {
     </div>
     ${items.length === 0 ? emptyState('No items','Try a different filter or import a manifest.') :
     `<div class="panel rounded-xl overflow-hidden">
-      <table class="data">
+      <div class="table-scroll"><table class="data">
         <thead><tr>
           <th>Item</th><th>Lot</th><th class="text-right">Qty</th>
           <th class="text-right">Retail</th><th class="text-right">Cost</th>
@@ -1398,7 +1480,7 @@ function renderInventory(page) {
             </td>
           </tr>`;
         }).join('')}</tbody>
-      </table>
+      </table></div>
     </div>`}
   `;
 }
@@ -1424,7 +1506,7 @@ function renderSales(page) {
     </div>
     ${sold.length===0 ? emptyState('No sales yet','Mark items as sold from Inventory or Lots.') :
     `<div class="panel rounded-xl overflow-hidden">
-      <table class="data">
+      <div class="table-scroll"><table class="data">
         <thead><tr>
           <th>Date</th><th>Item</th><th>Payment</th><th class="text-right">Sale</th>
           <th class="text-right">Cost</th><th class="text-right">Fees</th>
@@ -1445,7 +1527,7 @@ function renderSales(page) {
             <td class="text-right"><button class="btn btn-ghost text-xs py-1" onclick="openEditItemModal('${it.id}')">Edit</button></td>
           </tr>`;
         }).join('')}</tbody>
-      </table>
+      </table></div>
     </div>
     ${renderPaymentBreakdown(sold)}`}
   `;
@@ -1477,10 +1559,10 @@ function renderPaymentBreakdown(sold) {
       <div class="px-5 py-3 border-b border-white/5">
         <h3 class="font-semibold">Revenue by payment method</h3>
       </div>
-      <table class="data">
+      <div class="table-scroll"><table class="data">
         <thead><tr><th>Method</th><th class="text-right">Sales</th><th class="text-right">Revenue</th><th class="text-right">Profit</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>
+      </table></div>
     </div>`;
 }
 
@@ -1847,6 +1929,14 @@ function addItemToLot(lotId) {
 load();
 recalcAllAllocations();
 render();
+
+window.addEventListener('resize', () => {
+  if (!isMobileViewport()) closeNav();
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeNav();
+});
 
 // Allow ESC to close modal
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
