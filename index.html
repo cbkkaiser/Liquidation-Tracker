@@ -201,6 +201,22 @@ function load() {
     }
   } catch(e) { console.error(e); }
 }
+
+async function loadFallbackDataIfEmpty() {
+  if (state.lots.length || state.items.length) return;
+  try {
+    const res = await fetch('./liquidation-tracker-2026-06-14.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data.lots) || !Array.isArray(data.items)) return;
+    state.lots = data.lots;
+    state.items = data.items;
+    save();
+    toast('Loaded backup data', 'good');
+  } catch (e) {
+    console.warn('Fallback data not loaded:', e);
+  }
+}
 function updateStorageInfo() {
   const el = document.getElementById('storageInfo');
   if (!el) return;
@@ -1926,9 +1942,12 @@ function addItemToLot(lotId) {
 /* ============================================================
    INIT
    ============================================================ */
-load();
-recalcAllAllocations();
-render();
+(async function initApp() {
+  load();
+  await loadFallbackDataIfEmpty();
+  recalcAllAllocations();
+  render();
+})();
 
 window.addEventListener('resize', () => {
   if (!isMobileViewport()) closeNav();
